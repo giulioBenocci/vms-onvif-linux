@@ -28,7 +28,7 @@ BIN_DIR="${HOME}/.local/bin"
 DESKTOP_DIR="${HOME}/.local/share/applications"
 ICON_DIR="${HOME}/.local/share/icons/hicolor/scalable/apps"
 
-log()  { echo ">> $*"; }
+log()  { echo ">> $*" >&2; }
 die()  { echo "errore: $*" >&2; exit 1; }
 
 refresh_desktop_caches() {
@@ -66,7 +66,7 @@ detect_mode() {
     [ -n "$codename" ] || die "impossibile determinare la versione da /etc/os-release"
     log "distribuzione rilevata: ${PRETTY_NAME:-sconosciuta} (base ${codename})"
 
-    sudo apt update -qq
+    sudo apt update -qq >&2
 
     if apt-cache show python3-pyqt6 >/dev/null 2>&1; then
         echo "deb"
