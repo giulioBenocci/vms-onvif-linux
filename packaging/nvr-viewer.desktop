@@ -1,0 +1,17 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=NVR Viewer
+GenericName=Video wall
+GenericName[it]=Muro video
+Comment=View up to 16 ONVIF network cameras at once
+Comment[it]=Visualizza fino a 16 telecamere di rete ONVIF contemporaneamente
+Exec=nvr-viewer
+TryExec=nvr-viewer
+Icon=nvr-viewer
+Terminal=false
+Categories=AudioVideo;Video;Player;
+Keywords=camera;cctv;onvif;rtsp;nvr;surveillance;
+Keywords[it]=telecamera;videosorveglianza;onvif;rtsp;
+StartupNotify=true
+StartupWMClass=nvr-viewer

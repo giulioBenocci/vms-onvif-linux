@@ -1,0 +1,70 @@
+.TH NVR-VIEWER 1 "2026" "nvr-viewer 1.0.0" "User Commands"
+.SH NAME
+nvr-viewer \- video wall for up to 16 ONVIF network cameras
+.SH SYNOPSIS
+.B nvr-viewer
+[\fIOPTIONS\fR]
+.SH DESCRIPTION
+Discovers ONVIF cameras on the local network via WS\-Discovery and displays
+their RTSP streams in a grid of up to 16 tiles. Decoding is delegated to
+libmpv, with hardware acceleration when available.
+.PP
+Grid tiles use each camera's lowest\-resolution profile (substream); the
+high\-resolution profile is used only when a tile is zoomed.
+.SH OPTIONS
+.TP
+.BR \-u ", " \-\-user " " \fIUSER\fR
+ONVIF username.
+.TP
+.BR \-p ", " \-\-password " " \fIPASSWORD\fR
+ONVIF password. Prefer the configuration file to avoid exposing it in the
+process list.
+.TP
+.BR \-t ", " \-\-timeout " " \fISECONDS\fR
+WS\-Discovery wait time. Default 4.
+.TP
+.BR \-i ", " \-\-interface " " \fIIP\fR
+Local address used to send the multicast probe. Useful with several NICs.
+.TP
+.BR \-s ", " \-\-subnet " " \fICIDR\fR
+Subnet scanned when multicast discovery returns nothing.
+.TP
+.BR \-c ", " \-\-cameras " " \fIFILE\fR
+JSON file describing cameras manually.
+.TP
+.B \-\-no\-discovery
+Skip ONVIF discovery entirely.
+.TP
+.B \-\-no\-scan
+Do not fall back to a TCP scan of the subnet.
+.TP
+.B \-\-layout " " \fIN\fR
+Initial tile count: 1, 4, 9 or 16.
+.TP
+.B \-\-list
+Print discovered cameras and their stream URIs, then exit.
+.TP
+.B \-\-write\-config
+Create a default configuration file and exit.
+.SH KEYS
+.TP
+.BR 1 ", " 2 ", " 3 ", " 4
+Switch to 1, 4, 9 or 16 tiles.
+.TP
+.BR Left ", " Right
+Previous / next page of cameras.
+.TP
+.B Double click
+Zoom a tile and switch it to the high\-resolution stream.
+.TP
+.B Esc
+Leave zoom or fullscreen.
+.TP
+.B F11
+Toggle fullscreen.
+.SH FILES
+.TP
+.I ~/.config/nvr-viewer/config.json
+Credentials and defaults. Should be mode 0600.
+.SH SEE ALSO
+.BR mpv (1)

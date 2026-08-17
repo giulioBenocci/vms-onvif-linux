@@ -1,0 +1,14 @@
+[
+  {
+    "name": "Ingresso",
+    "main": "rtsp://192.168.1.64:554/Streaming/Channels/101",
+    "sub":  "rtsp://192.168.1.64:554/Streaming/Channels/102",
+    "user": "admin",
+    "password": "segreta"
+  },
+  {
+    "name": "Garage",
+    "host": "192.168.1.71",
+    "port": 80
+  }
+]
