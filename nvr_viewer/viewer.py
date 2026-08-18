@@ -69,6 +69,11 @@ LAYOUTS = {1: (1, 1), 4: (2, 2), 9: (3, 3), 16: (4, 4)}
 
 MPV_OPTIONS = dict(
     vo="gpu",
+    # --wid e' un meccanismo X11: forziamo esplicitamente il contesto GPU
+    # su X11/EGL, altrimenti su una sessione Wayland mpv puo' autorilevare
+    # WAYLAND_DISPLAY e aprire un suo contesto Wayland nativo, ignorando
+    # wid e creando una finestra separata invece di incapsularsi.
+    gpu_context="x11egl",
     # "-copy" forza la ricopia del fotogramma decodificato in una texture
     # normale, composta dentro la finestra dal renderer di mpv. Senza,
     # "auto-safe" puo' scegliere un percorso a copia zero che scansiona il

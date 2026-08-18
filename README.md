@@ -277,9 +277,14 @@ sudo apt install libxcb-cursor0
 
 `install.sh` la installa da solo dalla versione più recente dello script.
 
-**Schermo nero su Wayland.** L'embedding via `--wid` è poco affidabile lì. Il
-programma se ne accorge e forza XWayland da solo; Mint con Cinnamon usa
-comunque X11 di default. Per forzare a mano:
+**Schermo nero, o il video apre una finestra separata invece di stare nel
+riquadro, su Wayland.** `--wid` è un meccanismo X11: il programma forza
+XWayland da solo per Qt (`QT_QPA_PLATFORM=xcb`) e rimuove `WAYLAND_DISPLAY`
+dall'ambiente, altrimenti libmpv può comunque autorilevarla e scegliere un
+contesto Wayland nativo tutto suo, ignorando il `--wid` passato e aprendo
+una finestra mpv indipendente invece di incapsularsi. Mint con Cinnamon usa
+comunque X11 di default, quindi il caso tipico è GNOME/Wayland puro. Per
+forzare a mano:
 
 ```bash
 QT_QPA_PLATFORM=xcb nvr-viewer

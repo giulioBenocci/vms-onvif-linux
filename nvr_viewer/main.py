@@ -286,14 +286,27 @@ def run_list(args) -> int:
 
 def _prepare_display() -> None:
     """
-    L'embedding di mpv via --wid non e' affidabile su Wayland. Mint usa X11
-    di default, ma su una sessione Wayland forziamo xcb se disponibile.
+    L'embedding di mpv via --wid e' un meccanismo X11 e non ha equivalente
+    su Wayland nativo. Su una sessione Wayland forziamo Qt su XWayland
+    (QT_QPA_PLATFORM=xcb) — ma non basta: mpv/libmpv fa la propria scelta
+    di backend indipendente da Qt, e se vede WAYLAND_DISPLAY nell'ambiente
+    (siamo nello stesso processo Python, la eredita comunque) puo' aprire
+    un contesto Wayland nativo tutto suo, ignorando il --wid passato
+    (che per lui non significa nulla) e finendo per creare una finestra
+    mpv separata invece di incapsularsi nel riquadro. Rimuoviamo quindi
+    anche WAYLAND_DISPLAY quando forziamo xcb, per Qt o gia' scelto da chi
+    lancia il programma (QT_QPA_PLATFORM=xcb nvr-viewer).
     """
-    if os.environ.get("QT_QPA_PLATFORM"):
-        return
-    if os.environ.get("XDG_SESSION_TYPE") == "wayland" and os.environ.get("DISPLAY"):
-        os.environ["QT_QPA_PLATFORM"] = "xcb"
-        log.info("sessione Wayland rilevata: uso XWayland (QT_QPA_PLATFORM=xcb)")
+    using_xcb = os.environ.get("QT_QPA_PLATFORM") == "xcb"
+
+    if not using_xcb and not os.environ.get("QT_QPA_PLATFORM"):
+        if os.environ.get("XDG_SESSION_TYPE") == "wayland" and os.environ.get("DISPLAY"):
+            os.environ["QT_QPA_PLATFORM"] = "xcb"
+            using_xcb = True
+            log.info("sessione Wayland rilevata: uso XWayland (QT_QPA_PLATFORM=xcb)")
+
+    if using_xcb and os.environ.pop("WAYLAND_DISPLAY", None) is not None:
+        log.info("WAYLAND_DISPLAY rimossa dall'ambiente: forza anche mpv su X11/XWayland")
 
 
 def main(argv=None) -> int:
