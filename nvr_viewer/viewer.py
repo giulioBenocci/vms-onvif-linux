@@ -115,6 +115,14 @@ class _Surface(QWidget):
         self.setAttribute(_ATTR.WA_NativeWindow)
         self.setAttribute(_ATTR.WA_OpaquePaintEvent)
         self.setMinimumSize(160, 90)
+        # Forza subito la creazione della finestra nativa X11, invece di
+        # lasciarla pigra al primo mpv.MPV(wid=...). Un widget che diventa
+        # nativo a meta' vita (dopo essere gia' passato per layout come
+        # widget "alieno") puo' perdere la sincronizzazione posizione/
+        # dimensione con Qt sui passaggi di layout successivi: creandola
+        # da subito, tutta la vita del widget passa dal percorso nativo,
+        # quello testato e affidabile.
+        self.winId()
 
 
 class Tile(QFrame):
