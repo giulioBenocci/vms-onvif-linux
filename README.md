@@ -138,6 +138,18 @@ In entrambi i casi la configurazione risultante viene salvata in
 `config.json` (upsert per nome/host: si riconfigura la stessa telecamera
 senza duplicarla) e il riquadro passa subito al nuovo flusso.
 
+Il vendor di default per il fallback RTSP automatico (quando ONVIF non
+risponde) è **Provision ISR**: `/profile1` per il mainstream, `/profile2` per
+il substream. Gli NVR Provision ISR invece non seguono questo schema: i
+canali si selezionano via query string,
+
+```
+rtsp://host:554/chID={n}&streamType={main|sub}&linkType=tcp
+```
+
+con `{n}` il numero di canale. Un NVR multicanale va configurato un riquadro
+alla volta con **RTSP manuale**, un URL per canale.
+
 ## Uso
 
 ```bash

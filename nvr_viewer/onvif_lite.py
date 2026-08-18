@@ -50,8 +50,20 @@ NS_SCHEMA = "http://www.onvif.org/ver10/schema"
 COMMON_ONVIF_PORTS = (80, 8000, 8080, 8899, 2020, 5000)
 
 # Ultima spiaggia: se ONVIF non risponde (o non abbiamo le credenziali)
-# proviamo i path RTSP piu' diffusi. {main} e {sub} vengono sostituiti.
+# proviamo i path RTSP piu' diffusi. _fallback_camera() usa sempre il primo
+# della lista: e' il vendor di default per questo deployment.
+#
+# Gli NVR Provision ISR non seguono questo schema a un canale: espongono i
+# canali via query string, "/chID={n}&streamType={main|sub}&linkType=tcp"
+# (es. rtsp://host:554/chID=1&streamType=main&linkType=tcp per il canale 1).
+# Con piu' canali dietro lo stesso host va usato "RTSP manuale" dal tasto
+# destro sul riquadro, un URL per canale: il fallback automatico qui sotto
+# assume un host = una telecamera, non un NVR multicanale.
 FALLBACK_RTSP_PATHS = [
+    # Provision ISR (telecamere standalone). /profile3 esiste su alcuni
+    # modelli per integrazioni terze, /profile4 sulle termocamere: non
+    # tentati qui, il player scarta comunque i profili che non rispondono.
+    ("Provision ISR", "/profile1", "/profile2"),
     # Hikvision e cloni
     ("Hikvision", "/Streaming/Channels/101", "/Streaming/Channels/102"),
     # Dahua / Amcrest / Lorex
