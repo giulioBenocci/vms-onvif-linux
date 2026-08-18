@@ -88,7 +88,7 @@ Priority: optional
 Architecture: all
 Maintainer: ${MAINTAINER}
 Installed-Size: ${SIZE}
-Depends: python3 (>= 3.10), python3-mpv, python3-pyqt6 | python3-pyside6.qtwidgets
+Depends: python3 (>= 3.10), python3-mpv, python3-pyqt6 | python3-pyside6.qtwidgets, libxcb-cursor0
 Recommends: mpv
 Suggests: va-driver-all | nvidia-driver-libs
 Description: video wall for up to 16 ONVIF network cameras

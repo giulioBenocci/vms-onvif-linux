@@ -94,10 +94,15 @@ install_deb() {
 
 # --------------------------------------------------------------------------- #
 install_pip() {
-    log "installazione dipendenze di sistema (venv, libmpv)"
+    log "installazione dipendenze di sistema (venv, libmpv, Qt xcb)"
     sudo apt install -y python3-venv || die "impossibile installare python3-venv"
     sudo apt install -y libmpv2 2>/dev/null || sudo apt install -y libmpv1 \
         || die "impossibile installare libmpv (ne' libmpv2 ne' libmpv1 in repo)"
+    # Qt >= 6.5 non carica il plugin xcb senza questa libreria: senza,
+    # l'app stampa "no Qt platform plugin could be initialized" e crasha
+    # all'avvio, con l'unico indizio in stderr (invisibile se lanciata dal menu).
+    sudo apt install -y libxcb-cursor0 \
+        || die "impossibile installare libxcb-cursor0 (richiesta dal plugin xcb di Qt)"
 
     log "creazione virtualenv in ${VENV_DIR}"
     rm -rf "$VENV_DIR"

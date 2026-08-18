@@ -58,7 +58,9 @@ Se preferisci non usare `install.sh`:
 sudo apt install ./build/nvr-viewer_1.0.0_all.deb
 ```
 
-`apt` tira dentro da solo `python3-pyqt6`, `python3-mpv` e `libmpv2`. Il
+`apt` tira dentro da solo `python3-pyqt6`, `python3-mpv`, `libmpv2` e
+`libxcb-cursor0` (richiesta dal plugin xcb di Qt 6.5+, senza la quale l'app
+crasha all'avvio con "no Qt platform plugin could be initialized"). Il
 pacchetto è `Architecture: all` e pesa poche decine di KB, perché usa i
 pacchetti della distribuzione invece di includere copie proprie delle
 librerie. Rimozione: `sudo apt purge nvr-viewer`.
@@ -228,6 +230,17 @@ Altri accorgimenti già attivi in `MPV_OPTIONS` (`nvr_viewer/viewer.py`):
   contro i 3–5 s di una configurazione con cache.
 
 ## Problemi noti
+
+**"no Qt platform plugin could be initialized" / crash immediato all'avvio.**
+Manca `libxcb-cursor0`, richiesta dal plugin xcb di Qt 6.5+ (non basta
+`python3-pyqt6`/`libmpv`). Il `.deb` la dichiara come dipendenza, ma con
+l'installazione pip va aggiunta a mano:
+
+```bash
+sudo apt install libxcb-cursor0
+```
+
+`install.sh` la installa da solo dalla versione più recente dello script.
 
 **Schermo nero su Wayland.** L'embedding via `--wid` è poco affidabile lì. Il
 programma se ne accorge e forza XWayland da solo; Mint con Cinnamon usa
