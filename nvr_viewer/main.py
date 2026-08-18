@@ -204,6 +204,19 @@ def load_cameras_file(path: Path, user: str, password: str) -> list[onvif.Camera
     return build_cameras(json.loads(path.read_text(encoding="utf-8")), user, password)
 
 
+def upsert_camera_entry(entries: list[dict], entry: dict) -> list[dict]:
+    """Sostituisce, per host o per nome, la voce configurata dal dialogo
+    'Configura telecamera'; se non trova corrispondenza la aggiunge."""
+    entries = list(entries)
+    for i, existing in enumerate(entries):
+        same_host = entry.get("host") and existing.get("host") == entry.get("host")
+        same_name = entry.get("name") and existing.get("name") == entry.get("name")
+        if same_host or same_name:
+            entries[i] = entry
+            return entries
+    return entries + [entry]
+
+
 # --------------------------------------------------------------------------- #
 # CLI
 # --------------------------------------------------------------------------- #
@@ -343,6 +356,12 @@ def main(argv=None) -> int:
             win.status(f"{len(manual)} telecamere · discovery disattivata")
 
     win.settings_changed.connect(restart_discovery)
+
+    def persist_camera(entry: dict) -> None:
+        args.config_cameras = upsert_camera_entry(args.config_cameras, entry)
+        save_config({"cameras": args.config_cameras})
+
+    win.camera_configured.connect(persist_camera)
 
     if not args.no_discovery:
         controller.start(args)

@@ -119,7 +119,24 @@ ONVIF…** (o `Ctrl+,`) si aprono utente, password, interfaccia locale, subnet
 di fallback, timeout e l'interruttore della discovery automatica. Al salvataggio
 la configurazione viene scritta su disco (stessi permessi `600`) e la
 discovery riparte subito con le nuove credenziali, senza riavviare il
-programma.
+programma. Queste sono le credenziali *globali*, usate per la discovery e da
+ogni telecamera che non ne dichiari di proprie.
+
+### Credenziali per singola telecamera
+
+Tasto destro su un riquadro → **Configura telecamera…** apre due modalità:
+
+- **ONVIF**, con host/porta/utente/password propri — utile quando un device
+  vuole un account ONVIF diverso da quello globale. Lascia utente/password
+  vuoti per ereditare quelli globali.
+- **RTSP manuale**, con gli URL principale e secondario inseriti a mano —
+  serve quando la discovery non trova l'endpoint ONVIF del device (device non
+  ONVIF, firmware che non risponde, o dietro un firewall che blocca solo la
+  porta ONVIF ma non RTSP).
+
+In entrambi i casi la configurazione risultante viene salvata in
+`config.json` (upsert per nome/host: si riconfigura la stessa telecamera
+senza duplicarla) e il riquadro passa subito al nuovo flusso.
 
 ## Uso
 
@@ -136,15 +153,17 @@ credenziali prima di tirare in ballo l'interfaccia grafica.
 
 Documentazione completa delle opzioni: `man nvr-viewer`.
 
-### Comandi da tastiera
+### Comandi da tastiera e mouse
 
-| Tasto | Azione |
+| Tasto / azione | Effetto |
 |---|---|
 | `1` `2` `3` `4` | layout 1 / 4 / 9 / 16 riquadri |
 | `←` `→` | pagina precedente / successiva |
 | doppio click | ingrandisce il riquadro e passa al flusso HD |
+| tasto destro | Configura telecamera… (credenziali o RTSP di quel riquadro) |
 | `Esc` | esce dallo zoom o dal fullscreen |
 | `F11` | fullscreen |
+| `Ctrl+,` | Impostazioni → Credenziali ONVIF (globali) |
 | `Ctrl+Q` | esci |
 
 ## Ricostruire il pacchetto

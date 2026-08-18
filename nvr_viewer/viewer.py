@@ -15,10 +15,14 @@ Scelte architetturali che contano:
 from __future__ import annotations
 
 import logging
+from urllib.parse import urlsplit
 
+from . import onvif_lite as onvif
 from .qtcompat import (
     QAction,
+    QApplication,
     QCheckBox,
+    QComboBox,
     QDialog,
     QDialogButtonBox,
     QDoubleSpinBox,
@@ -30,7 +34,10 @@ from .qtcompat import (
     QLabel,
     QLineEdit,
     QMainWindow,
+    QMenu,
+    QMessageBox,
     QShortcut,
+    QSpinBox,
     QStatusBar,
     Qt,
     QTimer,
@@ -104,6 +111,7 @@ class Tile(QFrame):
 
     zoom_requested = Signal(object)
     selected_changed = Signal(object)
+    configure_requested = Signal(object)
     _status = Signal(str)
 
     def __init__(self, index: int, parent=None):
@@ -211,9 +219,18 @@ class Tile(QFrame):
         self.zoom_requested.emit(self)
         super().mouseDoubleClickEvent(event)
 
+    def contextMenuEvent(self, event):
+        menu = QMenu(self)
+        label = "Configura telecamera…" if self.camera is None \
+            else "Credenziali / RTSP di questa telecamera…"
+        menu.addAction(label, lambda: self.configure_requested.emit(self))
+        menu.exec(event.globalPos())
+
 
 class VideoWall(QWidget):
     """Griglia di riquadri con paginazione e zoom."""
+
+    configure_requested = Signal(object)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -228,6 +245,7 @@ class VideoWall(QWidget):
             tile = Tile(i, self)
             tile.zoom_requested.connect(self.toggle_zoom)
             tile.selected_changed.connect(self.select)
+            tile.configure_requested.connect(self.configure_requested.emit)
             self.tiles.append(tile)
 
         self.cameras: list = []
@@ -305,6 +323,16 @@ class VideoWall(QWidget):
         self.page = min(self.page, max(0, self.pages - 1))
         self.refresh()
 
+    def replace_camera(self, old_camera, new_camera) -> None:
+        """Sostituisce una telecamera esistente, o la aggiunge se old_camera
+        e' None (riquadro vuoto configurato per la prima volta)."""
+        cams = list(self.cameras)
+        if old_camera is not None and old_camera in cams:
+            cams[cams.index(old_camera)] = new_camera
+        else:
+            cams.append(new_camera)
+        self.set_cameras(cams)
+
     @property
     def pages(self) -> int:
         if not self.cameras:
@@ -334,6 +362,185 @@ class VideoWall(QWidget):
     def shutdown(self) -> None:
         for tile in self.tiles:
             tile.shutdown()
+
+
+class CameraDialog(QDialog):
+    """Configura una singola telecamera: ONVIF con credenziali proprie
+    (utile quando un device vuole un utente diverso da quello globale), o
+    URL RTSP inseriti a mano quando la discovery non trova l'endpoint ONVIF."""
+
+    def __init__(self, camera, defaults: dict, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Configura telecamera")
+        self.setMinimumWidth(420)
+        self.camera = None
+        self.entry: dict | None = None
+
+        self.name = QLineEdit(camera.name if camera else "")
+        self.name.setPlaceholderText("nome visualizzato")
+
+        self.mode = QComboBox()
+        self.mode.addItems(["ONVIF (rilevamento automatico)", "RTSP manuale"])
+
+        # -- ONVIF -- #
+        self.host = QLineEdit(camera.host if camera else "")
+        self.host.setPlaceholderText("192.168.1.64")
+        self.port = QSpinBox()
+        self.port.setRange(1, 65535)
+        self.port.setValue(camera.port if camera and camera.port else 80)
+        self.onvif_user = QLineEdit()
+        self.onvif_user.setPlaceholderText(
+            f"vuoto = usa quello globale ({defaults.get('user') or '—'})")
+        self.onvif_password = QLineEdit()
+        self.onvif_password.setEchoMode(QLineEdit.EchoMode.Password)
+        self.onvif_password.setPlaceholderText("vuoto = usa la password globale")
+
+        onvif_form = QFormLayout()
+        onvif_form.addRow("Host", self.host)
+        onvif_form.addRow("Porta", self.port)
+        onvif_form.addRow("Utente", self.onvif_user)
+        onvif_form.addRow("Password", self.onvif_password)
+        self.onvif_group = QWidget()
+        self.onvif_group.setLayout(onvif_form)
+
+        # -- RTSP manuale -- #
+        main_stream = camera.main if camera else None
+        sub_stream = camera.sub if camera else None
+        main_uri = main_stream.uri if main_stream else ""
+        sub_uri = sub_stream.uri if sub_stream and sub_stream is not main_stream else ""
+
+        self.rtsp_main = QLineEdit(main_uri)
+        self.rtsp_main.setPlaceholderText("rtsp://host:554/Streaming/Channels/101")
+        self.rtsp_sub = QLineEdit(sub_uri)
+        self.rtsp_sub.setPlaceholderText("rtsp://host:554/Streaming/Channels/102 (opzionale)")
+        self.rtsp_user = QLineEdit()
+        self.rtsp_user.setPlaceholderText("utente (opzionale, se non gia' nell'URL)")
+        self.rtsp_password = QLineEdit()
+        self.rtsp_password.setEchoMode(QLineEdit.EchoMode.Password)
+        self.rtsp_password.setPlaceholderText("password (opzionale)")
+
+        rtsp_form = QFormLayout()
+        rtsp_form.addRow("URL principale (HD)", self.rtsp_main)
+        rtsp_form.addRow("URL secondario (sub)", self.rtsp_sub)
+        rtsp_form.addRow("Utente", self.rtsp_user)
+        rtsp_form.addRow("Password", self.rtsp_password)
+        self.rtsp_group = QWidget()
+        self.rtsp_group.setLayout(rtsp_form)
+
+        self.error_label = QLabel("")
+        self.error_label.setStyleSheet("color: #e05d5d;")
+        self.error_label.setWordWrap(True)
+        self.error_label.hide()
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(self._on_accept)
+        buttons.rejected.connect(self.reject)
+
+        top_form = QFormLayout()
+        top_form.addRow("Nome", self.name)
+        top_form.addRow("Modalità", self.mode)
+
+        layout = QVBoxLayout(self)
+        layout.addLayout(top_form)
+        layout.addWidget(self.onvif_group)
+        layout.addWidget(self.rtsp_group)
+        layout.addWidget(self.error_label)
+        layout.addWidget(buttons)
+
+        self.mode.currentIndexChanged.connect(self._update_mode)
+        # Se la telecamera esistente non ha un xaddr ONVIF ma ha degli
+        # stream, e' stata configurata a mano: precompila quella modalita'.
+        start_rtsp = camera is not None and not camera.xaddr and bool(camera.streams)
+        self.mode.setCurrentIndex(1 if start_rtsp else 0)
+        self._update_mode()
+
+    def _update_mode(self) -> None:
+        rtsp = self.mode.currentIndex() == 1
+        self.rtsp_group.setVisible(rtsp)
+        self.onvif_group.setVisible(not rtsp)
+
+    def _fail(self, message: str) -> None:
+        self.error_label.setText(message)
+        self.error_label.show()
+
+    def _on_accept(self) -> None:
+        self.error_label.hide()
+        name = self.name.text().strip()
+
+        if self.mode.currentIndex() == 1:
+            self._accept_rtsp(name)
+        else:
+            self._accept_onvif(name)
+
+    def _accept_rtsp(self, name: str) -> None:
+        main = self.rtsp_main.text().strip()
+        sub = self.rtsp_sub.text().strip()
+        if not main and not sub:
+            self._fail("Inserisci almeno un URL RTSP.")
+            return
+
+        user = self.rtsp_user.text().strip()
+        password = self.rtsp_password.text()
+        streams = []
+        if main:
+            uri = onvif.with_credentials(main, user, password) if user else main
+            streams.append(onvif.Stream(token="main", name="main", uri=uri,
+                                        width=1920, height=1080))
+        if sub:
+            uri = onvif.with_credentials(sub, user, password) if user else sub
+            streams.append(onvif.Stream(token="sub", name="sub", uri=uri,
+                                        width=640, height=360))
+
+        host = urlsplit(main or sub).hostname or ""
+        camera_name = name or host or "camera"
+        self.camera = onvif.Camera(host=host, name=camera_name, streams=streams)
+        self.entry = {"name": camera_name, "main": main, "sub": sub}
+        if user:
+            self.entry["user"] = user
+            self.entry["password"] = password
+        self.accept()
+
+    def _accept_onvif(self, name: str) -> None:
+        host = self.host.text().strip()
+        if not host:
+            self._fail("Inserisci l'indirizzo host.")
+            return
+
+        port = self.port.value()
+        user = self.onvif_user.text().strip()
+        password = self.onvif_password.text()
+        xaddr = f"http://{host}:{port}/onvif/device_service"
+
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        try:
+            camera = onvif.resolve_camera(xaddr, user, password)
+        except Exception as exc:                          # noqa: BLE001
+            camera = None
+            log.warning("configurazione manuale %s: %s", host, exc)
+        finally:
+            QApplication.restoreOverrideCursor()
+
+        if camera is None:
+            self._fail(f"{host}:{port} non raggiungibile. Verifica host/porta, "
+                       "oppure passa a RTSP manuale.")
+            return
+
+        camera.name = name or camera.name
+        self.camera = camera
+        self.entry = {"name": camera.name, "host": host, "port": port}
+        if user:
+            self.entry["user"] = user
+            self.entry["password"] = password
+        self.accept()
+
+    @staticmethod
+    def edit(parent, camera, defaults: dict):
+        dialog = CameraDialog(camera, defaults, parent)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            return dialog.camera, dialog.entry
+        return None, None
 
 
 class SettingsDialog(QDialog):
@@ -417,6 +624,7 @@ class SettingsDialog(QDialog):
 class MainWindow(QMainWindow):
 
     settings_changed = Signal(dict)
+    camera_configured = Signal(dict)
 
     def __init__(self, title: str = "NVR Viewer"):
         super().__init__()
@@ -428,9 +636,10 @@ class MainWindow(QMainWindow):
         self._settings: dict = {}
 
         self.wall = VideoWall(self)
+        self.wall.configure_requested.connect(self._configure_camera)
         self.setCentralWidget(self.wall)
         self.setStatusBar(QStatusBar())
-        self.status("pronto")
+        self.status("pronto — tasto destro su un riquadro per configurare una telecamera")
 
         self._build_menu()
 
@@ -461,6 +670,14 @@ class MainWindow(QMainWindow):
         if result is not None:
             self._settings = result
             self.settings_changed.emit(result)
+
+    def _configure_camera(self, tile) -> None:
+        camera, entry = CameraDialog.edit(self, tile.camera, self._settings)
+        if camera is None:
+            return
+        self.wall.replace_camera(tile.camera, camera)
+        self.camera_configured.emit(entry)
+        self.status(f"telecamera '{camera.name}' salvata")
 
     def _bind(self, keys: str, slot) -> None:
         shortcut = QShortcut(QKeySequence(keys), self)
