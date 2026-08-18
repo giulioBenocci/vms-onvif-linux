@@ -14,6 +14,7 @@ Scelte architetturali che contano:
 
 from __future__ import annotations
 
+import locale
 import logging
 from urllib.parse import urlsplit
 
@@ -141,6 +142,10 @@ class Tile(QFrame):
 
     def _ensure_player(self):
         if self._mpv is None:
+            # Qt (o un widget locale-aware creato nel frattempo, es. uno
+            # QDoubleSpinBox) puo' aver rimesso LC_NUMERIC sulla locale di
+            # sistema: libmpv segfaulta sul parsing dei numeri se non e' "C".
+            locale.setlocale(locale.LC_NUMERIC, "C")
             self._mpv = mpv.MPV(
                 wid=str(int(self.surface.winId())),
                 **MPV_OPTIONS,

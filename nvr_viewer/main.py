@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import locale
 import logging
 import os
 import stat
@@ -321,6 +322,12 @@ def main(argv=None) -> int:
     app = QApplication(sys.argv)
     app.setApplicationName("NVR Viewer")
     app.setDesktopFileName("nvr-viewer")
+
+    # Qt imposta LC_NUMERIC sulla locale di sistema (es. it_IT, virgola come
+    # separatore decimale); libmpv/ffmpeg si aspettano sempre il punto e
+    # vanno in segfault sul parsing dei numeri altrimenti. Vedi la nota di
+    # python-mpv su LC_NUMERIC.
+    locale.setlocale(locale.LC_NUMERIC, "C")
 
     win = MainWindow()
     win.wall.set_layout(args.layout)
