@@ -314,7 +314,7 @@ def main(argv=None) -> int:
 
     _prepare_display()
 
-    from .qtcompat import QApplication, QT_API
+    from .qtcompat import QApplication, QT_API, QTimer
     from .viewer import MainWindow
 
     log.debug("binding Qt: %s", QT_API)
@@ -337,12 +337,6 @@ def main(argv=None) -> int:
         "timeout": args.timeout, "discovery": not args.no_discovery,
     })
     win.show()
-
-    for cam in build_cameras(args.config_cameras, args.user, args.password):
-        win.add_camera(cam)
-    if args.cameras:
-        for cam in load_cameras_file(args.cameras, args.user, args.password):
-            win.add_camera(cam)
 
     controller = DiscoveryController(win)
 
@@ -370,8 +364,20 @@ def main(argv=None) -> int:
 
     win.camera_configured.connect(persist_camera)
 
-    if not args.no_discovery:
-        controller.start(args)
+    def start_streams() -> None:
+        """Popola le telecamere e avvia la discovery solo dopo che la
+        finestra e' stata mostrata e disposta dal window manager: creare i
+        player mpv prima che i riquadri abbiano la geometria finale li fa
+        renderizzare fuori dai bordi previsti."""
+        for cam in build_cameras(args.config_cameras, args.user, args.password):
+            win.add_camera(cam)
+        if args.cameras:
+            for cam in load_cameras_file(args.cameras, args.user, args.password):
+                win.add_camera(cam)
+        if not args.no_discovery:
+            controller.start(args)
+
+    QTimer.singleShot(150, start_streams)
 
     code = app.exec()
     controller.stop()
