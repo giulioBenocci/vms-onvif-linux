@@ -254,7 +254,11 @@ vainfo                                  # controlla che i profili H264/HEVC ci s
 
 Altri accorgimenti già attivi in `MPV_OPTIONS` (`nvr_viewer/viewer.py`):
 
-- `hwdec=auto-safe` — decodifica su GPU quando il driver lo consente.
+- `hwdec=auto-copy-safe` — decodifica su GPU quando il driver lo consente,
+  ricopiando il fotogramma in una texture normale invece di usare un piano
+  overlay a copia zero: quel piano ignora il clipping della finestra
+  `--wid` e fa "sbordare" il video fuori dal riquadro, specie su XWayland.
+  Costa un po' di CPU per la copia, ma la decodifica resta su GPU.
 - `rtsp_transport=tcp` — RTSP su UDP perde pacchetti appena la rete si carica,
   e si vede: artefatti verdi e macroblocchi.
 - `profile=low-latency` + `cache=no` — buffering minimo. Latenza tipica 0,3–1 s

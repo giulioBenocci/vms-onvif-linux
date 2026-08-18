@@ -9,7 +9,10 @@ Scelte architetturali che contano:
   * in griglia si usa il *substream* della telecamera (tipicamente
     640x360), il mainstream solo quando un riquadro viene ingrandito.
     Questa singola scelta e' cio' che rende sostenibili 16 flussi;
-  * hwdec=auto-safe per delegare la decodifica alla GPU quando possibile.
+  * hwdec=auto-copy-safe per delegare la decodifica alla GPU quando
+    possibile, ma ricopiando il fotogramma in una texture normale invece
+    di un piano overlay a copia zero: quel piano ignorerebbe il clipping
+    della finestra --wid e il video sconfinerebbe fuori dal riquadro.
 """
 
 from __future__ import annotations
@@ -66,7 +69,14 @@ LAYOUTS = {1: (1, 1), 4: (2, 2), 9: (3, 3), 16: (4, 4)}
 
 MPV_OPTIONS = dict(
     vo="gpu",
-    hwdec="auto-safe",
+    # "-copy" forza la ricopia del fotogramma decodificato in una texture
+    # normale, composta dentro la finestra dal renderer di mpv. Senza,
+    # "auto-safe" puo' scegliere un percorso a copia zero che scansiona il
+    # video su un piano overlay DRM/VAAPI separato: quel piano ignora il
+    # clipping della finestra X11 in cui e' incapsulato (--wid), quindi il
+    # video "sborda" dal riquadro. Costa un po' di CPU in piu' per la copia,
+    # ma la decodifica resta comunque su GPU.
+    hwdec="auto-copy-safe",
     profile="low-latency",
     aid="no",                 # niente audio: 16 tracce audio non servono
     osc=False,
